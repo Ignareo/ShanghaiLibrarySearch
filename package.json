@@ -6,12 +6,11 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "shanghai-library-mcp": "./dist/index.js"
+    "shanghai-library-mcp": "dist/index.js"
   },
   "files": [
     "dist",
-    "README.md",
-    "docs"
+    "README.md"
   ],
   "scripts": {
     "clean": "rimraf dist",
@@ -21,7 +20,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "check": "npm run build && npm run test && npm run format:check"
+    "check": "npm run build && npm run test && npm run format:check",
+    "pack:dry-run": "npm pack --dry-run",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check"
   },
   "keywords": [
     "mcp",
@@ -29,8 +31,19 @@
     "shanghai-library",
     "library-search"
   ],
-  "author": "",
+  "author": "Ignareo",
   "license": "MIT",
+  "homepage": "https://github.com/Ignareo/ShanghaiLibrarySearch#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ignareo/ShanghaiLibrarySearch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ignareo/ShanghaiLibrarySearch/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20.18.1"
   },

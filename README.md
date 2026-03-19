@@ -1,131 +1,174 @@
 # Shanghai Library MCP
 
-面向上海图书馆公共目录的 TypeScript 原生 MCP Server。它将公开站点中的图书检索、馆藏查询、筛选与主题匹配能力，整理为可被 Claude Code、VS Code、Cherry Studio 等 MCP Host 直接调用的结构化工具集。
+A TypeScript-native MCP server for the public Shanghai Library catalog. It exposes structured tools for keyword search, advanced search, holdings lookup, batch search, and topic-based matching so MCP hosts such as Claude Code, VS Code, and Cherry Studio can query the catalog directly.
 
-## 项目定位
+## Overview
 
-本项目不是新的图书馆前端，也不是私有数据库接口，而是一个基于公开网页抓取与解析的本地工具型服务：
+This project is a local MCP server that adapts a public HTML-based catalog into stable, structured MCP tools.
 
-- **运行时**：Node.js + TypeScript
-- **协议**：MCP
-- **默认传输方式**：`stdio`
-- **分发方式**：`npm` / `npx`
-- **数据来源**：上海图书馆公开目录页面
+- **Runtime**: Node.js + TypeScript
+- **Protocol**: MCP
+- **Default transport**: `stdio`
+- **Distribution**: `npm` / `npx`
+- **Data source**: public Shanghai Library catalog pages
 
-适合的使用场景包括：
+Typical use cases:
 
-- 在 AI 客户端中按关键词搜索书目
-- 通过高级检索组合题名、作者、主题、馆藏馆、行政区、出版年等条件
-- 查询单条记录的馆藏明细与可借状态
-- 对多个主题批量搜索并附加馆藏过滤
-- 围绕一个主题自动寻找可用书目
+- Search catalog records by keyword from an AI client
+- Combine title, author, subject, district, library, year, and format filters with advanced search
+- Retrieve holdings and normalized availability for a known record
+- Run grouped batch queries with optional holdings filters
+- Find candidate books around a topic with availability constraints
 
-## 核心能力
+## Features
 
-### 1. 关键词检索
+### 1. Keyword Search
 
-输入关键词后，返回结构化搜索结果，包括书名、作者、出版社、出版年、索书号、文献类型、分页信息等。
+Returns structured search results including title, authors, publisher, publication year, call number, material type, and pagination metadata.
 
-### 2. 高级检索
+### 2. Advanced Search
 
-支持题名、作者、主题、索书号、ISBN、ISSN、出版社、出版地、出版年范围，以及行政区、馆藏馆、分类、语言、文献类型等筛选条件。
+Supports title, author, subject, call number, ISBN, ISSN, publisher, publication place, publication year range, district filters, library filters, classification filters, language filters, and format filters.
 
-### 3. 馆藏查询
+### 3. Holdings Lookup
 
-根据 `record_id` 查询馆藏明细，返回馆藏地、馆藏馆、索书号、借阅类型、原始状态和归一化后的可借状态。
+Fetches holdings for a `record_id`, including branch, location, call number, circulation type, raw status, and normalized availability.
 
-### 4. 批量搜索
+### 4. Batch Search
 
-一次提交多个查询词，按组返回搜索结果，并可选择附加馆藏与可借过滤。
+Executes multiple queries in one request and can optionally attach holdings plus availability-based filtering.
 
-### 5. 主题匹配
+### 5. Topic Matching
 
-围绕一个主题自动翻页扫描候选记录，并按馆藏过滤条件找出更适合的书目。
+Scans result pages for a topic and returns better-fit candidate books using holdings-based filtering.
 
-## 架构概览
+## Architecture
 
-项目采用“抓取 + 解析 + 编排 + MCP 暴露”的分层设计：
+The server follows a fetch → parse → orchestrate → expose pattern:
 
-- `src/index.ts`：CLI 入口，启动 MCP Server
-- `src/mcp-server.ts`：注册 MCP tools / resources，做输入输出边界校验
-- `src/service.ts`：编排搜索、高级搜索、馆藏、批量查询和主题匹配流程
-- `src/client.ts`：负责请求上海图书馆站点页面
-- `src/parsers.ts`：解析搜索结果页与馆藏页 HTML
-- `src/advanced-search.ts`：解析高级检索动态选项，并构造实际请求参数
-- `src/models.ts`：集中定义 Zod Schema 与共享数据契约
+- `src/index.ts`: CLI entrypoint that starts the MCP server
+- `src/mcp-server.ts`: registers MCP tools and resources, validates input and output boundaries
+- `src/service.ts`: orchestrates search, advanced search, holdings, batch search, and matching flows
+- `src/client.ts`: performs HTTP requests against the Shanghai Library site
+- `src/parsers.ts`: parses search and holdings HTML
+- `src/advanced-search.ts`: discovers advanced-search options and builds request parameters
+- `src/models.ts`: shared Zod schemas and domain contracts
 
-设计重点：
+Key design goals:
 
-1. **对外暴露稳定的 MCP 接口**，对内适配页面型站点变化
-2. **高级检索选项动态发现**，避免把馆藏馆、行政区、分类等枚举硬编码到代码里
-3. **馆藏状态归一化**，把中英混合、格式不一致的状态整理成可稳定过滤的字段
-4. **结构化输出**，降低 Host 二次解析自由文本的成本
+1. Keep the external MCP contract stable while adapting to an HTML source site
+2. Discover advanced-search facets dynamically instead of hardcoding site catalogs
+3. Normalize holdings status into stable availability categories
+4. Return structured data that AI hosts can consume directly
 
-## MCP 接口
+## MCP Interface
 
 ### Tools
 
-| Tool                          | 说明                     | 主要输入                                               |
-| ----------------------------- | ------------------------ | ------------------------------------------------------ |
-| `search_books`                | 关键词搜索图书           | `query`, `page`                                        |
-| `get_advanced_search_options` | 获取高级检索可用选项     | `refresh`                                              |
-| `search_books_advanced`       | 执行结构化高级检索       | 题名、作者、主题、索书号、年份、分类、语言、馆藏过滤等 |
-| `get_record_holdings`         | 查询单条记录馆藏         | `record_id`                                            |
-| `batch_search_records`        | 批量执行多个查询         | `queries`, `include_holdings`, `available_only` 等     |
-| `find_matching_books`         | 围绕主题自动寻找候选图书 | `topic`, `target_count`, `availability_filters` 等     |
+| Tool                          | Purpose                                          | Main inputs                                              |
+| ----------------------------- | ------------------------------------------------ | -------------------------------------------------------- |
+| `search_books`                | Search catalog records by keyword                | `query`, `page`                                          |
+| `get_advanced_search_options` | Fetch current advanced-search option metadata    | `refresh`                                                |
+| `search_books_advanced`       | Run structured advanced search                   | title, author, subject, year, classification, library... |
+| `get_record_holdings`         | Retrieve holdings for one catalog record         | `record_id`                                              |
+| `batch_search_records`        | Run grouped batch search with optional filtering | `queries`, `include_holdings`, `available_only`, ...     |
+| `find_matching_books`         | Find candidate books for a topic                 | `topic`, `target_count`, `availability_filters`, ...     |
 
 ### Resources
 
-| Resource                                    | 说明                                   |
-| ------------------------------------------- | -------------------------------------- |
-| `library://availability-categories`         | 归一化可借状态分类说明                 |
-| `library://server-info`                     | 服务版本、运行时、transport、tool 集合 |
-| `library://advanced-search-options-summary` | 高级检索选项摘要                       |
+| Resource                                    | Purpose                                   |
+| ------------------------------------------- | ----------------------------------------- |
+| `library://availability-categories`         | Describes normalized availability values  |
+| `library://server-info`                     | Server version, runtime, transport, tools |
+| `library://advanced-search-options-summary` | Compact advanced-search options summary   |
 
-## 快速开始
-
-### 环境要求
+## Requirements
 
 - Node.js `20.18.1+`
 - npm / npx
 
-### 本地开发
+## Local Development
+
+Install dependencies and run the validation suite:
 
 ```bash
 npm install
 npm run build
-npm test
+npm run test
+npm run format:check
 ```
 
-开发态启动：
+Run in development mode:
 
 ```bash
 npx tsx src/index.ts
 ```
 
-构建后启动：
+Run the built server:
 
 ```bash
 node dist/index.js
 ```
 
-发布后推荐启动方式：
+## Install and Run
+
+Recommended zero-install usage:
 
 ```bash
 npx -y shanghai-library-mcp
 ```
 
-## 主流 MCP Host 接入
+Optional global install for repeated CLI use:
+
+```bash
+npm install -g shanghai-library-mcp
+shanghai-library-mcp
+```
+
+Install as a project dependency only when you want to run it from a specific workspace:
+
+```bash
+npm install shanghai-library-mcp
+npx shanghai-library-mcp
+```
+
+`npm install shanghai-library-mcp` is a local install and writes to the current directory's `node_modules`, so run it inside a project folder rather than a system directory such as `C:\Windows\System32`.
+
+## Publish and npx Usage
+
+Recommended post-publish startup command:
+
+```bash
+npx -y shanghai-library-mcp
+```
+
+Run the full pre-publish checks:
+
+```bash
+npm run check
+npm run pack:dry-run
+npm publish --dry-run
+```
+
+Publish publicly to npm:
+
+```bash
+npm publish
+```
+
+After publishing, users can launch the server directly with `npx -y shanghai-library-mcp`.
+
+## MCP Host Setup
 
 ### Claude Code
 
-Windows 原生环境推荐：
+Windows:
 
 ```powershell
 claude mcp add --transport stdio --scope project shanghai-library-search -- cmd /c npx -y shanghai-library-mcp
 ```
 
-macOS / Linux / WSL 可直接使用：
+macOS / Linux / WSL:
 
 ```bash
 claude mcp add --transport stdio --scope project shanghai-library-search -- npx -y shanghai-library-mcp
@@ -133,7 +176,7 @@ claude mcp add --transport stdio --scope project shanghai-library-search -- npx 
 
 ### VS Code
 
-在项目中配置 `.vscode/mcp.json`：
+Add this to `.vscode/mcp.json`:
 
 ```json
 {
@@ -149,7 +192,7 @@ claude mcp add --transport stdio --scope project shanghai-library-search -- npx 
 
 ### Cherry Studio
 
-可导入如下配置：
+Import this configuration:
 
 ```json
 {
@@ -165,20 +208,20 @@ claude mcp add --transport stdio --scope project shanghai-library-search -- npx 
 }
 ```
 
-## 返回结果特点
+## Result Shape
 
-本项目返回的不是网页片段，而是适合 AI/Agent 直接消费的结构化数据：
+The server returns structured data rather than raw page fragments:
 
-- 搜索结果保留核心书目信息与分页信息
-- 馆藏结果同时保留原始状态与归一化后的 `availability`
-- 高级检索返回结构化筛选选项与解析后的真实参数
-- 批量与主题匹配能力返回统计、告警、错误与命中结果
+- search results include record metadata and pagination
+- holdings include raw status plus normalized `availability`
+- advanced search returns structured option catalogs and resolved request parameters
+- batch and matching flows include summaries, warnings, errors, and matched items
 
-## 项目结构
+## Project Structure
 
 ```text
-src/     TypeScript 源码（MCP server、service、client、parser、schema）
-tests/   集成测试
+src/     TypeScript source for the MCP server, services, client, parsers, and schemas
+tests/   Live integration tests
 ```
 
 ## License
