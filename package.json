@@ -1,0 +1,50 @@
+{
+  "name": "shanghai-library-mcp",
+  "version": "0.1.0",
+  "description": "TypeScript-native MCP server for Shanghai Library catalog search, advanced search, and holdings lookup.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "shanghai-library-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "check": "npm run build && npm run test && npm run format:check"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "shanghai-library",
+    "library-search"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.18.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "prettier": "^3.8.1",
+    "rimraf": "^6.1.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "cheerio": "^1.2.0",
+    "zod": "^4.3.6"
+  }
+}
