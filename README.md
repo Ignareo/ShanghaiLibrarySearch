@@ -1,5 +1,24 @@
 # Shanghai Library MCP
 
+
+还在手动打开网页、输入关键词、翻页找书、点进详情页看馆藏吗？
+
+现在，这些动作都可以交给 AI 一口气完成啦！(๑•̀ㅂ•́)و✧
+
+你可以直接问AI：
+
+- “帮我找 5 本上海图书馆里关于城市研究的可借书”
+- “查一下鲁迅相关馆藏，优先筛掉不可借的”
+- “围绕‘社会学入门’推荐一批适合新手的书”
+- “批量搜这些关键词，并按可借状态汇总”
+
+注意：
+- 仅使用于上海图书馆
+- 不涉及任何账号登录、个人隐私、敏感信息等
+- 仅提供公共目录检索功能，不涉及预约、续借等操作
+
+---
+
 面向上海图书馆公共目录的 TypeScript 原生 MCP Server。它将公开站点中的图书检索、馆藏查询、筛选与主题匹配能力，整理为可被 Claude Code、VS Code、Cherry Studio 等 MCP Host 直接调用的结构化工具集。
 
 ## 项目定位
@@ -42,73 +61,10 @@
 
 围绕一个主题自动翻页扫描候选记录，并按馆藏过滤条件找出更适合的书目。
 
-## 架构概览
-
-项目采用“抓取 → 解析 → 编排 → MCP 暴露”的分层设计：
-
-- `src/index.ts`：CLI 入口，启动 MCP Server
-- `src/mcp-server.ts`：注册 MCP tools / resources，做输入输出边界校验
-- `src/service.ts`：编排搜索、高级搜索、馆藏、批量查询和主题匹配流程
-- `src/client.ts`：负责请求上海图书馆站点页面
-- `src/parsers.ts`：解析搜索结果页与馆藏页 HTML
-- `src/advanced-search.ts`：解析高级检索动态选项，并构造实际请求参数
-- `src/models.ts`：集中定义 Zod Schema 与共享数据契约
-
-设计重点：
-
-1. **对外暴露稳定的 MCP 接口**，对内适配页面型站点变化
-2. **高级检索选项动态发现**，避免把馆藏馆、行政区、分类等枚举硬编码到代码里
-3. **馆藏状态归一化**，把中英混合、格式不一致的状态整理成可稳定过滤的字段
-4. **结构化输出**，降低 Host 二次解析自由文本的成本
-
-## MCP 接口
-
-### Tools
-
-| Tool                          | 说明                     | 主要输入                                           |
-| ----------------------------- | ------------------------ | -------------------------------------------------- |
-| `search_books`                | 关键词搜索图书           | `query`, `page`                                    |
-| `get_advanced_search_options` | 获取高级检索可用选项     | `refresh`                                          |
-| `search_books_advanced`       | 执行结构化高级检索       | 题名、作者、主题、年份、分类、语言、馆藏过滤等     |
-| `get_record_holdings`         | 查询单条记录馆藏         | `record_id`                                        |
-| `batch_search_records`        | 批量执行多个查询         | `queries`, `include_holdings`, `available_only` 等 |
-| `find_matching_books`         | 围绕主题自动寻找候选图书 | `topic`, `target_count`, `availability_filters` 等 |
-
-### Resources
-
-| Resource                                    | 说明                                   |
-| ------------------------------------------- | -------------------------------------- |
-| `library://availability-categories`         | 归一化可借状态分类说明                 |
-| `library://server-info`                     | 服务版本、运行时、transport、tool 集合 |
-| `library://advanced-search-options-summary` | 高级检索选项摘要                       |
-
 ## 环境要求
 
 - Node.js `20.18.1+`
 - npm / npx
-
-## 本地开发
-
-安装依赖并运行校验：
-
-```bash
-npm install
-npm run build
-npm run test
-npm run format:check
-```
-
-开发态启动：
-
-```bash
-npx tsx src/index.ts
-```
-
-构建后启动：
-
-```bash
-node dist/index.js
-```
 
 ## 安装与运行
 
@@ -134,29 +90,6 @@ npx shanghai-library-mcp
 
 注意：`npm install shanghai-library-mcp` 默认是**本地安装**，会写入当前目录的 `node_modules`。因此请在项目目录中执行，不要在 `C:\Windows\System32` 这类系统目录中直接运行。
 
-## 发布与 npx 使用
-
-发布后推荐启动方式：
-
-```bash
-npx -y shanghai-library-mcp
-```
-
-发布前建议先做完整检查：
-
-```bash
-npm run check
-npm run pack:dry-run
-npm publish --dry-run
-```
-
-公开发布到 npm：
-
-```bash
-npm publish
-```
-
-发布完成后，用户即可通过 `npx -y shanghai-library-mcp` 直接启动服务。
 
 ## 主流 MCP Host 接入
 
@@ -206,6 +139,72 @@ claude mcp add --transport stdio --scope project shanghai-library-search -- npx 
     }
   }
 }
+```
+
+
+## 架构概览
+
+项目采用“抓取 → 解析 → 编排 → MCP 暴露”的分层设计：
+
+- `src/index.ts`：CLI 入口，启动 MCP Server
+- `src/mcp-server.ts`：注册 MCP tools / resources，做输入输出边界校验
+- `src/service.ts`：编排搜索、高级搜索、馆藏、批量查询和主题匹配流程
+- `src/client.ts`：负责请求上海图书馆站点页面
+- `src/parsers.ts`：解析搜索结果页与馆藏页 HTML
+- `src/advanced-search.ts`：解析高级检索动态选项，并构造实际请求参数
+- `src/models.ts`：集中定义 Zod Schema 与共享数据契约
+
+设计重点：
+
+1. **对外暴露稳定的 MCP 接口**，对内适配页面型站点变化
+2. **高级检索选项动态发现**，避免把馆藏馆、行政区、分类等枚举硬编码到代码里
+3. **馆藏状态归一化**，把中英混合、格式不一致的状态整理成可稳定过滤的字段
+4. **结构化输出**，降低 Host 二次解析自由文本的成本
+
+## MCP 接口
+
+### Tools
+
+| Tool                          | 说明                     | 主要输入                                           |
+| ----------------------------- | ------------------------ | -------------------------------------------------- |
+| `search_books`                | 关键词搜索图书           | `query`, `page`                                    |
+| `get_advanced_search_options` | 获取高级检索可用选项     | `refresh`                                          |
+| `search_books_advanced`       | 执行结构化高级检索       | 题名、作者、主题、年份、分类、语言、馆藏过滤等     |
+| `get_record_holdings`         | 查询单条记录馆藏         | `record_id`                                        |
+| `batch_search_records`        | 批量执行多个查询         | `queries`, `include_holdings`, `available_only` 等 |
+| `find_matching_books`         | 围绕主题自动寻找候选图书 | `topic`, `target_count`, `availability_filters` 等 |
+
+### Resources
+
+| Resource                                    | 说明                                   |
+| ------------------------------------------- | -------------------------------------- |
+| `library://availability-categories`         | 归一化可借状态分类说明                 |
+| `library://server-info`                     | 服务版本、运行时、transport、tool 集合 |
+| `library://advanced-search-options-summary` | 高级检索选项摘要                       |
+
+
+
+## 本地开发
+
+安装依赖并运行校验：
+
+```bash
+npm install
+npm run build
+npm run test
+npm run format:check
+```
+
+开发态启动：
+
+```bash
+npx tsx src/index.ts
+```
+
+构建后启动：
+
+```bash
+node dist/index.js
 ```
 
 ## 返回结果特点
